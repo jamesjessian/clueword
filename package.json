@@ -1,0 +1,14 @@
+{
+  "name": "word-similarity-service",
+  "version": "1.0.0",
+  "description": "Word similarity API using GloVe embeddings",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "download-vectors": "node scripts/download-vectors.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0"
+  }
+}

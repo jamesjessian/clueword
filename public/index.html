@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clueword</title>
+  <style>
+    :root {
+      --bg: #1a1a2e;
+      --surface: #16213e;
+      --surface-light: #1c2a4a;
+      --accent: #e2b714;
+      --text: #e0e0e0;
+      --text-dim: #7a7a8a;
+      --correct: #538d4e;
+      --incorrect: #b44;
+      --star-on: #e2b714;
+      --star-off: #3a3a4a;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    header {
+      width: 100%;
+      text-align: center;
+      padding: 1.5rem 1rem 1rem;
+      border-bottom: 1px solid var(--surface-light);
+    }
+
+    header h1 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+
+    header p {
+      color: var(--text-dim);
+      font-size: 0.85rem;
+      margin-top: 0.3rem;
+    }
+
+    .game-container {
+      width: 100%;
+      max-width: 480px;
+      padding: 1.5rem 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    /* ── Clue cards ─────────────────────────────── */
+
+    .clues {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .clue-card {
+      display: flex;
+      align-items: center;
+      background: var(--surface);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.4s ease;
+    }
+
+    .clue-card.revealed {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .clue-card.latest {
+      background: var(--surface-light);
+      border: 1px solid var(--accent);
+    }
+
+    .clue-rank {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--accent);
+      width: 2rem;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    .clue-word {
+      font-size: 1.1rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      flex-grow: 1;
+      text-align: center;
+    }
+
+    .clue-bar {
+      width: 3rem;
+      height: 6px;
+      background: var(--surface-light);
+      border-radius: 3px;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .clue-bar-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 3px;
+      transition: width 0.6s ease;
+    }
+
+    /* ── Guess area ─────────────────────────────── */
+
+    .guess-area {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+
+    .guess-input {
+      flex-grow: 1;
+      padding: 0.75rem 1rem;
+      font-size: 1rem;
+      background: var(--surface);
+      border: 2px solid var(--surface-light);
+      border-radius: 8px;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .guess-input:focus {
+      border-color: var(--accent);
+    }
+
+    .guess-input::placeholder {
+      color: var(--text-dim);
+    }
+
+    .btn {
+      padding: 0.75rem 1.2rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .btn:active {
+      transform: scale(0.97);
+    }
+
+    .btn-guess {
+      background: var(--accent);
+      color: var(--bg);
+    }
+
+    .btn-guess:hover {
+      filter: brightness(1.1);
+    }
+
+    .btn-skip {
+      background: var(--surface-light);
+      color: var(--text-dim);
+    }
+
+    .btn-skip:hover {
+      background: #253050;
+    }
+
+    .btn-guess:disabled, .btn-skip:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    /* ── Status bar ─────────────────────────────── */
+
+    .status-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5rem 0;
+      color: var(--text-dim);
+      font-size: 0.85rem;
+    }
+
+    .guesses-left {
+      display: flex;
+      gap: 0.25rem;
+    }
+
+    .guess-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      transition: background 0.3s;
+    }
+
+    .guess-dot.used {
+      background: var(--surface-light);
+    }
+
+    /* ── Wrong guess flash ──────────────────────── */
+
+    .shake {
+      animation: shake 0.4s ease;
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20% { transform: translateX(-8px); }
+      40% { transform: translateX(8px); }
+      60% { transform: translateX(-4px); }
+      80% { transform: translateX(4px); }
+    }
+
+    /* ── Result overlay ─────────────────────────── */
+
+    .result-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      z-index: 100;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .result-overlay.show {
+      display: flex;
+    }
+
+    .result-card {
+      background: var(--surface);
+      border-radius: 16px;
+      padding: 2.5rem 2rem;
+      text-align: center;
+      max-width: 360px;
+      width: 90%;
+      animation: pop 0.4s ease;
+    }
+
+    @keyframes pop {
+      0% { transform: scale(0.8); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .result-emoji {
+      font-size: 3rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .result-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin-bottom: 0.3rem;
+    }
+
+    .result-word {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin: 0.5rem 0;
+    }
+
+    .result-stars {
+      font-size: 2rem;
+      margin: 0.75rem 0;
+      letter-spacing: 0.2em;
+    }
+
+    .star-on { color: var(--star-on); }
+    .star-off { color: var(--star-off); }
+
+    .result-detail {
+      color: var(--text-dim);
+      font-size: 0.9rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .btn-play-again {
+      background: var(--accent);
+      color: var(--bg);
+      padding: 0.8rem 2rem;
+      font-size: 1rem;
+    }
+
+    /* ── Wrong guesses list ─────────────────────── */
+
+    .wrong-guesses {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      min-height: 1.5rem;
+    }
+
+    .wrong-guess {
+      background: var(--incorrect);
+      color: white;
+      padding: 0.2rem 0.6rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.8); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    /* ── How to play ────────────────────────────── */
+
+    .how-to-play {
+      text-align: center;
+      color: var(--text-dim);
+      font-size: 0.8rem;
+      line-height: 1.6;
+      padding: 0 0.5rem;
+      border-top: 1px solid var(--surface-light);
+      padding-top: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Clueword</h1>
+    <p>Guess the secret word from its closest neighbours</p>
+  </header>
+
+  <div class="game-container">
+    <div class="status-bar">
+      <span id="clue-counter">Clue 1 of 10</span>
+      <div class="guesses-left" id="guess-dots"></div>
+    </div>
+
+    <div class="clues" id="clues"></div>
+
+    <div class="wrong-guesses" id="wrong-guesses"></div>
+
+    <div class="guess-area">
+      <input
+        type="text"
+        class="guess-input"
+        id="guess-input"
+        placeholder="Type your guess..."
+        autocomplete="off"
+        autocapitalize="off"
+        spellcheck="false"
+      >
+      <button class="btn btn-guess" id="btn-guess">Guess</button>
+      <button class="btn btn-skip" id="btn-skip">Skip</button>
+    </div>
+
+    <div class="how-to-play">
+      You'll see clue words ranked by similarity to the secret word.<br>
+      Rank 1 = most similar. Guess the word, or skip for the next clue.<br>
+      ⭐⭐⭐⭐⭐ 1–2 clues · ⭐⭐⭐⭐ 3–4 · ⭐⭐⭐ 5–6 · ⭐⭐ 7–8 · ⭐ 9–10
+    </div>
+  </div>
+
+  <div class="result-overlay" id="result-overlay">
+    <div class="result-card">
+      <div class="result-emoji" id="result-emoji"></div>
+      <div class="result-title" id="result-title"></div>
+      <div class="result-word" id="result-word"></div>
+      <div class="result-stars" id="result-stars"></div>
+      <div class="result-detail" id="result-detail"></div>
+      <button class="btn btn-play-again" id="btn-play-again">Play Again</button>
+    </div>
+  </div>
+
+  <script>
+    const state = {
+      clues: [],          // all 10 clues, sorted rank 1 (closest) to 10 (furthest)
+      revealedCount: 0,   // how many clues shown
+      guessesUsed: 0,
+      maxGuesses: 10,
+      wrongGuesses: [],
+      gameOver: false,
+      won: false,
+      puzzleId: null,
+      daily: false,
+      secret: null,       // only known after game ends
+    };
+
+    const $clues = document.getElementById('clues');
+    const $input = document.getElementById('guess-input');
+    const $btnGuess = document.getElementById('btn-guess');
+    const $btnSkip = document.getElementById('btn-skip');
+    const $counter = document.getElementById('clue-counter');
+    const $dots = document.getElementById('guess-dots');
+    const $wrongGuesses = document.getElementById('wrong-guesses');
+    const $overlay = document.getElementById('result-overlay');
+    const $resultEmoji = document.getElementById('result-emoji');
+    const $resultTitle = document.getElementById('result-title');
+    const $resultWord = document.getElementById('result-word');
+    const $resultStars = document.getElementById('result-stars');
+    const $resultDetail = document.getElementById('result-detail');
+    const $btnPlayAgain = document.getElementById('btn-play-again');
+
+    async function loadPuzzle(mode = 'random') {
+      const url = mode === 'daily' ? '/api/puzzle/daily' : '/api/puzzle/random';
+      const res = await fetch(url);
+      const data = await res.json();
+
+      state.clues = data.clues; // rank 1 (closest) to 10 (furthest)
+      state.puzzleId = data.puzzleId || null;
+      state.daily = mode === 'daily';
+      state.secret = data._secret; // dev only
+      state.revealedCount = 0;
+      state.guessesUsed = 0;
+      state.wrongGuesses = [];
+      state.gameOver = false;
+      state.won = false;
+
+      $clues.innerHTML = '';
+      $wrongGuesses.innerHTML = '';
+      $overlay.classList.remove('show');
+      $input.value = '';
+      $input.disabled = false;
+      $btnGuess.disabled = false;
+      $btnSkip.disabled = false;
+
+      renderDots();
+      revealNextClue();
+      $input.focus();
+    }
+
+    function revealNextClue() {
+      if (state.revealedCount >= 10) return;
+
+      // Reveal from furthest (rank 10) to closest (rank 1)
+      const clueIdx = 9 - state.revealedCount; // start from index 9 (rank 10), go to 0 (rank 1)
+      const clue = state.clues[clueIdx];
+      state.revealedCount++;
+
+      // Remove 'latest' from previous
+      const prev = $clues.querySelector('.clue-card.latest');
+      if (prev) prev.classList.remove('latest');
+
+      const card = document.createElement('div');
+      card.className = 'clue-card';
+      card.innerHTML = `
+        <span class="clue-rank">#${clue.rank}</span>
+        <span class="clue-word">${clue.word}</span>
+        <div class="clue-bar">
+          <span class="clue-bar-fill" style="width: 0%"></span>
+        </div>
+      `;
+
+      // Insert at top so newest clue is always on top
+      $clues.prepend(card);
+
+      // Animate in
+      requestAnimationFrame(() => {
+        card.classList.add('revealed', 'latest');
+        const fill = card.querySelector('.clue-bar-fill');
+        // Closer rank = wider bar
+        fill.style.width = `${Math.round((1 - (clue.rank - 1) / 10) * 100)}%`;
+      });
+
+      updateCounter();
+    }
+
+    function updateCounter() {
+      $counter.textContent = `Clue ${state.revealedCount} of 10`;
+    }
+
+    function renderDots() {
+      $dots.innerHTML = '';
+      for (let i = 0; i < state.maxGuesses; i++) {
+        const dot = document.createElement('div');
+        dot.className = 'guess-dot' + (i < state.guessesUsed ? ' used' : '');
+        $dots.appendChild(dot);
+      }
+    }
+
+    async function submitGuess() {
+      const guess = $input.value.trim().toLowerCase();
+      if (!guess || state.gameOver) return;
+
+      // Check with server
+      const body = state.daily
+        ? { guess, daily: true }
+        : { guess, puzzleId: state.puzzleId };
+
+      const res = await fetch('/api/puzzle/check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      const data = await res.json();
+
+      if (data.correct) {
+        state.won = true;
+        state.gameOver = true;
+        showResult();
+      } else {
+        state.guessesUsed++;
+        state.wrongGuesses.push(guess);
+
+        // Show wrong guess
+        const tag = document.createElement('span');
+        tag.className = 'wrong-guess';
+        tag.textContent = guess;
+        $wrongGuesses.appendChild(tag);
+
+        // Shake input
+        $input.classList.add('shake');
+        setTimeout(() => $input.classList.remove('shake'), 400);
+
+        renderDots();
+
+        if (state.guessesUsed >= state.maxGuesses) {
+          state.gameOver = true;
+          showResult();
+        }
+      }
+
+      $input.value = '';
+      $input.focus();
+    }
+
+    function skip() {
+      if (state.gameOver) return;
+
+      state.guessesUsed++;
+      renderDots();
+
+      if (state.revealedCount < 10) {
+        revealNextClue();
+      }
+
+      if (state.guessesUsed >= state.maxGuesses) {
+        state.gameOver = true;
+        showResult();
+      }
+
+      $input.focus();
+    }
+
+    function calculateStars() {
+      if (!state.won) return 0;
+      const cluesUsed = state.revealedCount;
+      if (cluesUsed <= 2) return 5;
+      if (cluesUsed <= 4) return 4;
+      if (cluesUsed <= 6) return 3;
+      if (cluesUsed <= 8) return 2;
+      return 1;
+    }
+
+    function showResult() {
+      $input.disabled = true;
+      $btnGuess.disabled = true;
+      $btnSkip.disabled = true;
+
+      const stars = calculateStars();
+
+      if (state.won) {
+        $resultEmoji.textContent = stars >= 4 ? '🎉' : stars >= 2 ? '👏' : '😅';
+        $resultTitle.textContent = stars === 5 ? 'Brilliant!' : stars === 4 ? 'Great job!' : stars === 3 ? 'Nice one!' : stars === 2 ? 'Not bad!' : 'Just made it!';
+      } else {
+        $resultEmoji.textContent = '😞';
+        $resultTitle.textContent = 'Better luck next time';
+      }
+
+      $resultWord.textContent = state.secret;
+
+      let starsHtml = '';
+      for (let i = 0; i < 5; i++) {
+        starsHtml += `<span class="${i < stars ? 'star-on' : 'star-off'}">★</span>`;
+      }
+      $resultStars.innerHTML = starsHtml;
+
+      $resultDetail.textContent = state.won
+        ? `Solved after ${state.revealedCount} clue${state.revealedCount !== 1 ? 's' : ''}`
+        : `The word was revealed above`;
+
+      setTimeout(() => $overlay.classList.add('show'), 300);
+    }
+
+    // ── Event listeners ──────────────────────────
+
+    $btnGuess.addEventListener('click', submitGuess);
+    $btnSkip.addEventListener('click', skip);
+
+    $input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') submitGuess();
+    });
+
+    $btnPlayAgain.addEventListener('click', () => loadPuzzle('random'));
+
+    // ── Start ────────────────────────────────────
+    loadPuzzle('random');
+  </script>
+</body>
+</html>
