@@ -537,6 +537,11 @@
 
         renderDots();
 
+        // Reveal next clue after wrong guess
+        if (state.revealedCount < 10) {
+          revealNextClue();
+        }
+
         if (state.guessesUsed >= state.maxGuesses) {
           state.gameOver = true;
           showResult();
