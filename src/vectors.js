@@ -124,3 +124,10 @@ export function hasWord(word) {
 export function vocabSize() {
   return vectors.size;
 }
+
+/**
+ * Get all words in the vocabulary.
+ */
+export function allWords() {
+  return Array.from(vectors.keys());
+}

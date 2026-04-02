@@ -128,6 +128,13 @@ app.post('/api/puzzle/check', (req, res) => {
     return res.status(400).json({ error: 'guess is required' });
   }
 
+  const normalised = guess.toLowerCase().trim();
+
+  // Validate word exists in dictionary
+  if (!hasWord(normalised)) {
+    return res.json({ valid: false, correct: false, guess: normalised });
+  }
+
   let secret;
   if (daily) {
     secret = dailyPuzzle().secret;
@@ -137,8 +144,8 @@ app.post('/api/puzzle/check', (req, res) => {
     return res.status(400).json({ error: 'Either daily:true or puzzleId required' });
   }
 
-  const correct = guess.toLowerCase().trim() === secret.toLowerCase();
-  return res.json({ correct, guess: guess.toLowerCase().trim() });
+  const correct = normalised === secret.toLowerCase();
+  return res.json({ valid: true, correct, guess: normalised });
 });
 
 // ── Health ──────────────────────────────────────────────────

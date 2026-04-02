@@ -7,7 +7,7 @@
  * Requires: data/glove.6B.300d.txt (run `npm run download-vectors` first)
  */
 
-import { loadVectors, mostSimilar, hasWord } from '../src/vectors.js';
+import { loadVectors, mostSimilar, hasWord, allWords } from '../src/vectors.js';
 import { PUZZLE_WORDS } from '../src/puzzle.js';
 import { writeFileSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
@@ -41,6 +41,7 @@ async function precompute() {
     }
   }
 
+  // Save puzzle data
   const output = { words: validWords, puzzles };
   const json = JSON.stringify(output);
   const outPath = join(__dirname, '..', 'api', 'puzzles.json');
@@ -49,6 +50,16 @@ async function precompute() {
 
   console.log(`\n✓ Pre-computed ${validWords.length} puzzles → api/puzzles.json`);
   console.log(`  File size: ${(Buffer.byteLength(json) / 1024).toFixed(1)}KB`);
+
+  // Export vocabulary (alphabetic words only, 2+ chars) for dictionary validation
+  console.log('\nExporting vocabulary for dictionary validation...');
+  const vocab = allWords().filter(w => /^[a-z]{2,}$/.test(w));
+  vocab.sort();
+  const vocabPath = join(__dirname, '..', 'api', 'vocabulary.json');
+  writeFileSync(vocabPath, JSON.stringify(vocab));
+
+  console.log(`✓ Exported ${vocab.toLocaleString().length > 0 ? vocab.length.toLocaleString() : vocab.length} words → api/vocabulary.json`);
+  console.log(`  File size: ${(Buffer.byteLength(JSON.stringify(vocab)) / (1024 * 1024)).toFixed(1)}MB`);
 }
 
 precompute().catch(err => {

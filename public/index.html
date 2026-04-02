@@ -333,6 +333,31 @@
       to { opacity: 1; transform: scale(1); }
     }
 
+    /* ── Toast notification ──────────────────────── */
+
+    .toast {
+      position: fixed;
+      top: 4rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(-10px);
+      background: var(--surface-light);
+      color: var(--text);
+      padding: 0.6rem 1.2rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      opacity: 0;
+      transition: all 0.3s ease;
+      z-index: 200;
+      pointer-events: none;
+      border: 1px solid var(--text-dim);
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
     /* ── How to play ────────────────────────────── */
 
     .how-to-play {
@@ -500,9 +525,35 @@
       }
     }
 
+    function showToast(msg) {
+      // Remove any existing toast
+      const old = document.querySelector('.toast');
+      if (old) old.remove();
+
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.textContent = msg;
+      document.body.appendChild(toast);
+      requestAnimationFrame(() => toast.classList.add('show'));
+      setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+      }, 1500);
+    }
+
     async function submitGuess() {
       const guess = $input.value.trim().toLowerCase();
       if (!guess || state.gameOver) return;
+
+      // Check for duplicate guess
+      if (state.wrongGuesses.includes(guess)) {
+        showToast('Already guessed!');
+        $input.classList.add('shake');
+        setTimeout(() => $input.classList.remove('shake'), 400);
+        $input.value = '';
+        $input.focus();
+        return;
+      }
 
       // Check with server
       const body = state.daily
@@ -516,6 +567,16 @@
       });
 
       const data = await res.json();
+
+      // Word not in dictionary
+      if (data.valid === false) {
+        showToast('Not a valid word!');
+        $input.classList.add('shake');
+        setTimeout(() => $input.classList.remove('shake'), 400);
+        $input.value = '';
+        $input.focus();
+        return;
+      }
 
       if (data.correct) {
         state.won = true;

@@ -15,6 +15,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const data = JSON.parse(readFileSync(join(__dirname, 'puzzles.json'), 'utf8'));
 const { words, puzzles } = data;
 
+// Load vocabulary for dictionary validation
+const vocabulary = new Set(JSON.parse(readFileSync(join(__dirname, 'vocabulary.json'), 'utf8')));
+
 // ── Helpers ─────────────────────────────────────────────────
 
 function getDailySeed() {
@@ -86,6 +89,13 @@ export async function handler(event) {
     const { guess, puzzleId, daily } = body;
     if (!guess) return respond(400, { error: 'guess is required' });
 
+    const normalised = guess.toLowerCase().trim();
+
+    // Validate word exists in dictionary
+    if (!vocabulary.has(normalised)) {
+      return respond(200, { valid: false, correct: false, guess: normalised });
+    }
+
     let secret;
     if (daily) {
       secret = dailyPuzzle().secret;
@@ -99,8 +109,8 @@ export async function handler(event) {
       return respond(400, { error: 'Either daily:true or puzzleId required' });
     }
 
-    const correct = guess.toLowerCase().trim() === secret.toLowerCase();
-    return respond(200, { correct, guess: guess.toLowerCase().trim() });
+    const correct = normalised === secret.toLowerCase();
+    return respond(200, { valid: true, correct, guess: normalised });
   }
 
   // GET /api/health
