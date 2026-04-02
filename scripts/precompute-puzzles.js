@@ -8,7 +8,7 @@
  */
 
 import { loadVectors, mostSimilar, hasWord, allWords } from '../src/vectors.js';
-import { PUZZLE_WORDS } from '../src/puzzle.js';
+import { PUZZLE_WORDS, tooSimilar } from '../src/puzzle.js';
 import { writeFileSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -28,12 +28,19 @@ async function precompute() {
       continue;
     }
 
-    const { results } = mostSimilar(word, 10);
-    puzzles[word] = results.map((r, i) => ({
-      rank: i + 1,
-      word: r.word,
-      similarity: Math.round(r.similarity * 10000) / 10000,
-    }));
+    const { results } = mostSimilar(word, 50);
+    const clues = [];
+    for (const r of results) {
+      if (clues.length >= 10) break;
+      if (tooSimilar(r.word, word)) continue;
+      if (clues.some(c => tooSimilar(r.word, c.word))) continue;
+      clues.push({
+        rank: clues.length + 1,
+        word: r.word,
+        similarity: Math.round(r.similarity * 10000) / 10000,
+      });
+    }
+    puzzles[word] = clues;
     validWords.push(word);
 
     if (validWords.length % 10 === 0) {

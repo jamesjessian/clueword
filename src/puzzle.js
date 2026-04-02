@@ -30,7 +30,27 @@ const PUZZLE_WORDS = [
 ];
 
 /**
+ * Check if two words are morphological variants of each other.
+ * Catches: roast/roasted, strawberry/strawberries, paint/painting, swim/swimmer
+ */
+function tooSimilar(a, b) {
+  const [short, long] = a.length <= b.length ? [a, b] : [b, a];
+  if (short.length < 4) return false; // skip very short words to avoid false positives
+
+  // One word is a prefix of the other: roast → roasted, fish → fishing
+  if (long.startsWith(short)) return true;
+
+  // Share almost the entire shorter word as a prefix: strawberry/strawberries
+  let common = 0;
+  while (common < short.length && short[common] === long[common]) common++;
+  if (common >= short.length - 1) return true;
+
+  return false;
+}
+
+/**
  * Generate a puzzle: pick a secret word, find 10 closest words as clues.
+ * Filters out clues that are morphological variants of the secret or each other.
  * Returns { secret, clues: [{ rank, word, similarity }] } where clues[0] is rank 1 (closest).
  */
 export function generatePuzzle(seed) {
@@ -45,16 +65,28 @@ export function generatePuzzle(seed) {
     throw new Error(`Secret word "${secret}" not in vocabulary`);
   }
 
-  const { results } = mostSimilar(secret, 10);
+  // Fetch extra candidates so we can filter and still get 10 good clues
+  const { results } = mostSimilar(secret, 50);
 
-  const clues = results.map((r, i) => ({
-    rank: i + 1,
-    word: r.word,
-    similarity: Math.round(r.similarity * 10000) / 10000,
-  }));
+  const clues = [];
+  for (const r of results) {
+    if (clues.length >= 10) break;
+    // Skip variants of the secret word
+    if (tooSimilar(r.word, secret)) continue;
+    // Skip variants of already-selected clues
+    if (clues.some(c => tooSimilar(r.word, c.word))) continue;
+
+    clues.push({
+      rank: clues.length + 1,
+      word: r.word,
+      similarity: Math.round(r.similarity * 10000) / 10000,
+    });
+  }
 
   return { secret, clues };
 }
+
+export { tooSimilar };
 
 /**
  * Generate a daily puzzle using date as seed.
