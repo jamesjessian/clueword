@@ -110,7 +110,7 @@ export async function handler(event) {
     }
 
     const correct = normalised === secret.toLowerCase();
-    return respond(200, { valid: true, correct, guess: normalised });
+    return respond(200, { valid: true, correct, guess: normalised, secret });
   }
 
   // GET /api/health

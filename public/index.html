@@ -456,7 +456,7 @@
       state.clues = data.clues; // rank 1 (closest) to 10 (furthest)
       state.puzzleId = data.puzzleId || null;
       state.daily = mode === 'daily';
-      state.secret = data._secret; // dev only
+      state.secret = null;
       state.revealedCount = 0;
       state.guessesUsed = 0;
       state.wrongGuesses = [];
@@ -577,6 +577,9 @@
         $input.focus();
         return;
       }
+
+      // Store the secret word from the server response
+      if (data.secret) state.secret = data.secret;
 
       if (data.correct) {
         state.won = true;

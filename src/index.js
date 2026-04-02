@@ -108,7 +108,6 @@ app.get('/api/puzzle/daily', (_req, res) => {
     puzzleNumber: puzzle.puzzleNumber,
     clues: puzzle.clues.map(c => ({ rank: c.rank, word: c.word })),
     // Secret is NOT sent — it's checked server-side
-    _secret: puzzle.secret, // TODO: remove in prod, useful for dev
   });
 });
 
@@ -118,7 +117,6 @@ app.get('/api/puzzle/random', (_req, res) => {
   return res.json({
     puzzleId: id,
     clues: puzzle.clues.map(c => ({ rank: c.rank, word: c.word })),
-    _secret: puzzle.secret,
   });
 });
 
@@ -145,7 +143,7 @@ app.post('/api/puzzle/check', (req, res) => {
   }
 
   const correct = normalised === secret.toLowerCase();
-  return res.json({ valid: true, correct, guess: normalised });
+  return res.json({ valid: true, correct, guess: normalised, secret });
 });
 
 // ── Health ──────────────────────────────────────────────────
