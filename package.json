@@ -6,7 +6,9 @@
   "type": "module",
   "scripts": {
     "start": "node src/index.js",
-    "download-vectors": "node scripts/download-vectors.js"
+    "download-vectors": "node scripts/download-vectors.js",
+    "precompute": "node scripts/precompute-puzzles.js",
+    "deploy": "./deploy.sh"
   },
   "dependencies": {
     "express": "^5.1.0"

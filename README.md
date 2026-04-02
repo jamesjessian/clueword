@@ -4,7 +4,9 @@ A word-guessing game powered by semantic similarity. Guess the secret word from 
 
 Built on GloVe (Global Vectors for Word Representation) embeddings with a lightweight Node.js API.
 
-## Setup
+## Local Development
+
+### Setup
 
 ```bash
 npm install
@@ -12,7 +14,7 @@ npm install
 
 ### Downloading GloVe Data
 
-The game uses Stanford's GloVe 6B 300-dimensional word vectors (~400k word vocabulary). The data file is **not included in the repo** — you need to download it before running:
+The game uses Stanford's GloVe 6B 300-dimensional word vectors (~400k word vocabulary). The data file is **not included in the repo** — you need to download it before running locally:
 
 ```bash
 npm run download-vectors
@@ -22,15 +24,86 @@ This downloads the vectors from Hugging Face (~862MB), extracts the 300d file (~
 
 **Manual alternative:** Download `glove.6B.zip` from [Hugging Face](https://huggingface.co/stanfordnlp/glove/resolve/main/glove.6B.zip) or [Stanford NLP](https://nlp.stanford.edu/data/glove.6B.zip), extract `glove.6B.300d.txt`, and place it in the `data/` directory.
 
-### Running
+### Running locally
 
 ```bash
 npm start
 ```
 
-Starts on port 3200 (or set the `PORT` environment variable).
+Starts on port 3200 (or set the `PORT` environment variable). Open `http://localhost:3200` to play.
 
-Open `http://localhost:3200` to play Clueword in the browser.
+The local server includes the full word similarity API in addition to the game.
+
+## AWS Deployment
+
+The game deploys to AWS as:
+- **Lambda + API Gateway** — serves the puzzle API
+- **S3 + CloudFront** — hosts the static frontend
+
+CloudFront routes `/api/*` requests to the Lambda and serves everything else from S3.
+
+### Prerequisites
+
+- [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html)
+- [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) configured with credentials
+- GloVe data downloaded locally (for the pre-compute step)
+
+### Pre-compute puzzle data
+
+Before deploying, generate the puzzle data that Lambda uses. This runs locally with the full GloVe vectors and outputs a compact JSON file:
+
+```bash
+npm run precompute
+```
+
+This creates `api/puzzles.json` (~69KB) containing pre-computed clue sets for all ~142 puzzle words. The Lambda function loads this instead of the 1GB GloVe file.
+
+> **Note:** `api/puzzles.json` is committed to the repo so you can deploy without needing the GloVe vectors. Only re-run `precompute` if you change the puzzle word list.
+
+### Deploy
+
+```bash
+./deploy.sh [stack-name]
+```
+
+Defaults to stack name `clueword` in `eu-west-2`. Set `AWS_REGION` to override.
+
+The script:
+1. Builds the Lambda function (`sam build`)
+2. Deploys the SAM stack (Lambda, API Gateway, S3, CloudFront)
+3. Syncs the frontend to S3
+4. Invalidates the CloudFront cache
+
+Or deploy manually:
+
+```bash
+sam build
+sam deploy --guided
+aws s3 sync public/ s3://YOUR_BUCKET_NAME/ --delete
+```
+
+### Architecture
+
+```
+                    CloudFront
+                   ┌──────────┐
+                   │          │
+            /api/* │          │  /*
+           ┌───────┤          ├───────┐
+           │       └──────────┘       │
+           ▼                          ▼
+    ┌─────────────┐            ┌─────────────┐
+    │ API Gateway  │            │     S3      │
+    │  (HTTP API)  │            │  (static)   │
+    └──────┬──────┘            └─────────────┘
+           │                    index.html
+           ▼
+    ┌─────────────┐
+    │   Lambda    │
+    │ (puzzle API)│
+    └─────────────┘
+     puzzles.json
+```
 
 ## How Clueword Works
 
@@ -41,18 +114,23 @@ Open `http://localhost:3200` to play Clueword in the browser.
 
 ## API Endpoints
 
-### Game
+### Game (available on Lambda + local)
 
-- `GET /api/puzzle/daily` — Today's puzzle (deterministic, same for everyone)
-- `GET /api/puzzle/random` — Random puzzle
-- `POST /api/puzzle/check` — Validate a guess (`{ puzzleId, guess }`)
+| Endpoint | Method | Description |
+|---|---|---|
+| `/api/puzzle/daily` | GET | Today's puzzle (deterministic, same for everyone) |
+| `/api/puzzle/random` | GET | Random puzzle |
+| `/api/puzzle/check` | POST | Validate a guess (`{ guess, puzzleId }` or `{ guess, daily: true }`) |
+| `/api/health` | GET | Health check |
 
-### Word Similarity
+### Word Similarity (local only)
 
-- `GET /similarity?word1=cat&word2=dog` — Cosine similarity between two words
-- `GET /similar?word=coffee&n=10` — N most similar words
-- `GET /check?word=waffle` — Check if a word exists in the vocabulary
-- `GET /stats` — Vocabulary size and model info
+| Endpoint | Method | Description |
+|---|---|---|
+| `/similarity?word1=cat&word2=dog` | GET | Cosine similarity between two words |
+| `/similar?word=coffee&n=10` | GET | N most similar words |
+| `/check?word=waffle` | GET | Check if a word exists in the vocabulary |
+| `/stats` | GET | Vocabulary size and model info |
 
 ## How Similarity Works
 
